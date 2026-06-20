@@ -25,6 +25,7 @@ class CrackerPanel(ttk.Frame):
         self.get_capture_file = get_capture_file
         self.get_target = get_target
         self._poll_id = None
+        self._has_discrete_gpu = False
         self._build_ui()
         self._detect_gpu_status()
 
@@ -179,12 +180,13 @@ class CrackerPanel(ttk.Frame):
             self.backend_var.set("aircrack")
 
         # Hide PRIME checkbox if no hybrid GPU setup
-        if not has_discrete_gpu():
+        self._has_discrete_gpu = has_discrete_gpu()
+        if not self._has_discrete_gpu:
             self.prime_check.pack_forget()
 
     def _on_backend_change(self):
         backend = self.backend_var.get()
-        if backend == "hashcat":
+        if backend == "hashcat" and self._has_discrete_gpu:
             self.prime_check.pack(side="right", padx=5)
         else:
             self.prime_check.pack_forget()
@@ -381,18 +383,36 @@ class CrackerPanel(ttk.Frame):
                 )
 
         elif backend == "hashcat":
-            # Hashcat cracked output
-            if "Cracked" in line or "Status" in line:
+            if "Status.......: Cracked" in line:
+                self.progress_var.set("KEY FOUND!")
+                self.log.config(state="normal")
+                self.log.insert("end", "\n[+] Hash cracked!\n", "found")
+                self.log.see("end")
+                self.log.config(state="disabled")
+            elif "Status" in line or "Cracked" in line:
                 self.progress_var.set(line.strip()[:80])
 
-            # Hashcat shows recovered passwords with :<password> format
             if "Speed" in line:
                 self.progress_var.set(f"GPU: {line.strip()[:80]}")
 
-            # Check for the actual cracked hash line
-            if "::" not in line and ":" in line and "Status" not in line:
-                # Could be a cracked result line
-                pass
+            # Detect cracked hash:plaintext output line (bare, not a hashcat status label)
+            _hashcat_labels = (
+                "Status", "Speed", "Hash", "Time", "Kernel", "Guess",
+                "Progress", "Recovered", "Rules", "Session", "Candidates",
+                "Hardware", "Device", "Restore", "Rejected", "Started",
+                "Stopped", "Approaching", "Watchdog",
+            )
+            stripped = line.strip()
+            if (stripped and ":" in stripped
+                    and not any(stripped.startswith(lbl) for lbl in _hashcat_labels)
+                    and "FOUND" not in self.progress_var.get()):
+                password = stripped.rsplit(":", 1)[1]
+                if password:
+                    self.progress_var.set(f"KEY FOUND: {password}")
+                    self.log.config(state="normal")
+                    self.log.insert("end", f"\n[+] PASSWORD: {password}\n", "found")
+                    self.log.see("end")
+                    self.log.config(state="disabled")
 
     def set_capture_file(self, path):
         self.cap_var.set(path)

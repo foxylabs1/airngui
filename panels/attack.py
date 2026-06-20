@@ -51,6 +51,15 @@ class AttackPanel(ttk.Frame):
         )
         ttk.Label(row2, text="(broadcast = all clients)").pack(side="left")
 
+        row3 = ttk.Frame(target_frame)
+        row3.pack(fill="x", padx=5, pady=2)
+        ttk.Label(row3, text="ESSID:").pack(side="left")
+        self.essid_var = tk.StringVar()
+        ttk.Entry(row3, textvariable=self.essid_var, width=30).pack(
+            side="left", padx=5
+        )
+        ttk.Label(row3, text="(required for fakeauth)").pack(side="left")
+
         # Attack type
         attack_frame = ttk.LabelFrame(self, text="Attack Type")
         attack_frame.pack(fill="x", padx=10, pady=5)
@@ -106,6 +115,7 @@ class AttackPanel(ttk.Frame):
         if target:
             self.bssid_var.set(target["bssid"])
             self.channel_var.set(target["channel"])
+            self.essid_var.set(target.get("essid", ""))
             self._log(f"[+] Loaded target: {target['essid']} ({target['bssid']})")
         else:
             self._log("[!] No target selected — right-click an AP in Scanner first")
@@ -124,17 +134,23 @@ class AttackPanel(ttk.Frame):
         attack = self.attack_type.get()
         count = self.count_var.get().strip() or "10"
 
-        # Build command based on attack type
-        attack_flags = {0: "--deauth", 1: "--fakeauth", 3: "--arpreplay"}
-        flag = attack_flags.get(attack, "--deauth")
-
-        cmd = ["aireplay-ng", flag, count, "-a", bssid]
-
-        client = self.client_var.get().strip()
-        if client and client != "FF:FF:FF:FF:FF:FF" and attack == 0:
-            cmd.extend(["-c", client])
-
-        cmd.append(iface)
+        if attack == 0:
+            cmd = ["aireplay-ng", "--deauth", count, "-a", bssid]
+            client = self.client_var.get().strip()
+            if client and client != "FF:FF:FF:FF:FF:FF":
+                cmd.extend(["-c", client])
+            cmd.append(iface)
+        elif attack == 1:
+            essid = self.essid_var.get().strip()
+            cmd = ["aireplay-ng", "--fakeauth", count, "-a", bssid]
+            if essid:
+                cmd.extend(["-e", essid])
+            cmd.append(iface)
+        elif attack == 3:
+            cmd = ["aireplay-ng", "--arpreplay", "-b", bssid, iface]
+        else:
+            self._log(f"[!] Unknown attack type: {attack}")
+            return
 
         self._log(f"\n$ {' '.join(cmd)}")
         self.pm.start("aireplay", cmd)

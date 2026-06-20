@@ -21,7 +21,7 @@ from panels.decrypt import DecryptPanel
 from panels.log_viewer import LogPanel
 
 APP_NAME = "AirNGUI"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 
 
 class AirNGUI(tk.Tk):

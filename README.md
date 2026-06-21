@@ -56,7 +56,7 @@ Built for Debian-based Linux systems with NVIDIA hybrid GPU support.
 ### From .deb package (recommended)
 
 ```bash
-sudo apt install ./airngui_1.0.0_all.deb
+sudo apt install ./airngui_1.0.3_all.deb
 ```
 
 This installs the application, all dependencies, a desktop launcher, and the `airngui` command.
